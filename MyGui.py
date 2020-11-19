@@ -1660,14 +1660,11 @@ if __name__ == "__main__":
 
 	# todo add project column
 	# todo Farnell item price, depending on amount
-	
-	# todo knop toevoegen die bij orders de zichtbare lijst kopieerd, ordernummer, amount, added by, project
-	#   of rechtermuisknop, copy
-	
+	# todo add button to reorder in batches
 	# todo after deleting row, keep ordering
 
-	#todo divide Ui_MainWindow class into multiple parts (setting up ui, table stuff, signal slots(?))
-	# maybe one class per tab, so it's easy to make another tab in the future?
+	# todo divide Ui_MainWindow class into multiple parts (setting up ui, table stuff, signal slots(?))
+	#  maybe one class per tab, so it's easy to make another tab in the future?
 
 	DebugTiming.enable(DEBUG)
 	DebugTiming.start('creating objects')
