@@ -1,6 +1,6 @@
-import PySide2.QtWidgets as QtWidgets
-import PySide2.QtGui as QtGui
-import PySide2.QtCore as QtCore
+import PySide6.QtWidgets as QtWidgets
+import PySide6.QtGui as QtGui
+import PySide6.QtCore as QtCore
 
 
 try: #needed because otherwise it crashes the exe for some reason
@@ -18,7 +18,7 @@ from shutil import copy2
 
 
 from MyDebug import *
-DEBUG = True
+DEBUG = False
 
 
 
@@ -54,17 +54,6 @@ gDate_ordered_col = 13
 gDate_returned_col = 14
 
 
-
-
-class MyQMainWindow(QtWidgets.QMainWindow):
-	close_check = QtCore.Signal(bool)
-	def __init__(self):
-		QtWidgets.QMainWindow.__init__(self)
-
-	def closeEvent(self, *args, **kwargs):
-		self.close_check.emit(True)
-
-
 class IntDelegate(QtWidgets.QItemDelegate):
 	def createEditor(self, parent, option, index):
 		return QtWidgets.QSpinBox(parent, minimum=0, maximum=10000000)
@@ -78,16 +67,16 @@ class FloatDelegate(QtWidgets.QItemDelegate):
 		self.box.setPrefix(data[0]+" ")
 		self.box.setValue(float(data[1]))
 
-		act_eur = QtWidgets.QAction("Edit currency to €", self.box)
+		act_eur = QtGui.QAction("Edit currency to €", self.box)
 		act_eur.triggered.connect(self.f_eur)
 		self.box.addAction(act_eur)
-		act_dol = QtWidgets.QAction("Edit currency to $", self.box)
+		act_dol = QtGui.QAction("Edit currency to $", self.box)
 		act_dol.triggered.connect(self.f_dol)
 		self.box.addAction(act_dol)
-		act_pou = QtWidgets.QAction("Edit currency to £", self.box)
+		act_pou = QtGui.QAction("Edit currency to £", self.box)
 		act_pou.triggered.connect(self.f_pou)
 		self.box.addAction(act_pou)
-		act_custom = QtWidgets.QAction("Edit currency to custom", self.box)
+		act_custom = QtGui.QAction("Edit currency to custom", self.box)
 		act_custom.triggered.connect(self.f_custom)
 		self.box.addAction(act_custom)
 
@@ -125,7 +114,8 @@ class LineEditDelegate(QtWidgets.QItemDelegate):
 		return box
 
 # noinspection PyUnresolvedReferences
-class Ui_MainWindow(QtWidgets.QWidget):
+class Ui_self(QtWidgets.QMainWindow):
+	close_check = QtCore.Signal(bool)
 	REFRESH_BUSY = 0
 	VERSION = 'v' + VERSION
 	COMMENT_MAX_LEN = 999
@@ -149,19 +139,19 @@ class Ui_MainWindow(QtWidgets.QWidget):
 
 	tables = str()
 	db_path = str()
-	row_data = int()
+	#row_data = int()
 	db = str()
 	config = str()
 	cproduct_list = list()
 	table_row_changed = set()
 
-	def __init__(self, MainWindow, db, config):
-		QtWidgets.QWidget.__init__(self)
+	def __init__(self, db, config):
+		QtWidgets.QMainWindow.__init__(self)
 
 		self._set_palette()
 		self.db = db
 		self.config = config
-		self._ui_set_mainwindow(MainWindow)
+		self._ui_set_mainwindow()
 
 		self._ui_set_menubar()
 		self._ui_set_statusbar()
@@ -177,18 +167,27 @@ class Ui_MainWindow(QtWidgets.QWidget):
 		self._set_tab_order()
 		self.cAddedBy.setFocus()
 
+
 		#self._fill_combobox_inputs()
 
 		import atexit
 		atexit.register(self.__destructor__)  # destructor
+
+	def showEvent(self, event):
+		DebugTiming.start('config_set')
+		QtCore.QTimer.singleShot(50, self.config_set)
+		DebugTiming.finish('config_set')
+
+	def closeEvent(self, *args, **kwargs):
+		self.close_check.emit(True)
 
 	def __destructor__(self):
 		if config.get_last_opened() == Config_Default:
 			return
 		regex_mode = int(self.actionRegex_filtering_mode.isChecked())
 		admin_mode = int(self.actionAdmin_mode.isChecked())
-		window_width = MainWindow.width()
-		window_height = MainWindow.height()
+		window_width = self.width()
+		window_height = self.height()
 		added_by = self.cAddedBy.currentText()
 
 		column_count = self.tablemodel.columnCount()
@@ -204,33 +203,35 @@ class Ui_MainWindow(QtWidgets.QWidget):
 		config.set_setting(Config__Window_height, window_height)
 		config.set_setting(Config__Added_by, added_by)
 		config.set_setting(Config__Column_size, column_size)
+		# sys.exit(0)
 
 	def config_set(self):
 		self.CONFIG_BUSY = True
 
-		db_name = config.get_last_opened()
+		db_name = self.config.get_last_opened()
 
 		if self.open_db(db_name, False):
 			if self.explorer_open_db():
 				self.__destructor__()
-				MainWindow.close()  # if cancel exit app
+				self.close()  # if cancel exit app
 				sys.exit(0)
 
-		db_name = config.get_last_opened()
-		regex_mode = int(config.get_setting(Config_Regex, Config_Misc))
-		admin_mode = int(config.get_setting(Config__Admin_mode))
-		window_width = int(config.get_setting(Config__Window_width))  # test
-		window_height = int(config.get_setting(Config__Window_height))  # test
-		added_by = config.get_setting(Config__Added_by)
-		column_size = config.get_setting(Config__Column_size)
+		db_name = self.config.get_last_opened()
+		regex_mode = int(self.config.get_setting(Config_Regex, Config_Misc))
+		admin_mode = int(self.config.get_setting(Config__Admin_mode))
+		window_width = int(self.config.get_setting(Config__Window_width))  # test
+		window_height = int(self.config.get_setting(Config__Window_height))  # test
+		added_by = self.config.get_setting(Config__Added_by)
+		column_size = self.config.get_setting(Config__Column_size)
 		if (column_size[0:2] == '75') and (column_size[3:5] == '75') and (column_size[6:8] == '75'): #sometimes the columns reset after unexpected exit. this fixes that
-			column_size = config.get_setting(Config__Column_size, Config_Default)
+			column_size = self.config.get_setting(Config__Column_size, Config_Default)
 
 		db.set_db(db_name)
 		self.statusbar_text.setText(db_name)
-		MainWindow.resize(window_width, window_height)
-		dt_center = QtWidgets.QDesktopWidget().availableGeometry().center() #place in center of screen
-		MainWindow.move(int(dt_center.x() - window_width/2), int(dt_center.y() - window_height/2))
+		self.resize(window_width, window_height)
+#		dt_center = QtWidgets.QDesktopWidget().availableGeometry().center() #place in center of screen #deprecated
+		dt_center = QtGui.QScreen.availableGeometry(QtWidgets.QApplication.primaryScreen()).center() #replacement
+		self.move(int(dt_center.x() - window_width/2), int(dt_center.y() - window_height/2))
 
 		self.cAddedBy.setCurrentText(added_by)
 
@@ -264,7 +265,7 @@ class Ui_MainWindow(QtWidgets.QWidget):
 		self.tab_neworder.setTabOrder(self.cCurrency, self.bUrl)
 		self.tab_neworder.setTabOrder(self.bUrl, self.tabWidget)
 
-		MainWindow.setTabOrder(self.tabWidget, self.tableview)
+		self.setTabOrder(self.tabWidget, self.tableview)
 
 	def _set_palette(self):
 		brush = QtGui.QBrush(QtGui.QColor(0, 102, 153))
@@ -297,51 +298,55 @@ class Ui_MainWindow(QtWidgets.QWidget):
 		brush.setStyle(QtCore.Qt.SolidPattern)
 		self.palette_statusbar.setBrush(QtGui.QPalette.Disabled, QtGui.QPalette.Window, brush)
 
-	def _ui_set_mainwindow(self, MainWindow):
-		MainWindow.setMinimumSize(QtCore.QSize(600, 400))
-		MainWindow.setPalette(self.palette_window)
+	def _ui_set_mainwindow(self):
+		self.setMinimumSize(QtCore.QSize(600, 400))
+		self.setPalette(self.palette_window)
 
-		self.centralWidget = QtWidgets.QWidget(MainWindow)
+		self.centralWidget = QtWidgets.QWidget(self)
 		self.gridLayout_mainwindow = QtWidgets.QGridLayout(self.centralWidget)
 		self.gridLayout_mainwindow.setContentsMargins(6, 6, 6, 4)
-		MainWindow.setCentralWidget(self.centralWidget)
+		self.setCentralWidget(self.centralWidget)
 
-		MainWindow.setWindowTitle("SOS: Simple Order System " + self.VERSION)
-		MainWindow.setWindowIcon(QtGui.QIcon("icon/icon_180.png"))
+		self.setWindowTitle("SOS: Simple Order System " + self.VERSION)
+		self.setWindowIcon(QtGui.QIcon("icon/icon_180.png"))
 
 	def _ui_set_menubar(self):
-		self.menuBar = QtWidgets.QMenuBar(MainWindow)
+		self.menuBar = QtWidgets.QMenuBar(self)
 		self.menuBar.setGeometry(QtCore.QRect(0, 0, 780, 21))
-		MainWindow.setMenuBar(self.menuBar)
+		self.setMenuBar(self.menuBar)
 		# ----
 		self.menuFile = QtWidgets.QMenu(self.menuBar)
 		self.menuFile.setTitle("File")
 
-		self.actionOpen = QtWidgets.QAction(MainWindow)
-		self.actionOpen.setText("Open")
+		self.actionImport = QtGui.QAction(self)
+		self.actionImport.setText("Import")
+		self.menuFile.addAction(self.actionImport)
+
+		self.actionOpen = QtGui.QAction(self)
+		self.actionOpen.setText("Open db")
 		self.menuFile.addAction(self.actionOpen)
 
-		self.actionReload = QtWidgets.QAction(MainWindow)
+		self.actionReload = QtGui.QAction(self)
 		self.actionReload.setText("Reload")
 		self.menuFile.addAction(self.actionReload)
 
 		self.menuFile.addSeparator()
 
-		self.actionExit = QtWidgets.QAction(MainWindow)
+		self.actionExit = QtGui.QAction(self)
 		self.actionExit.setText("Exit")
 		self.menuFile.addAction(self.actionExit)
 		# ----
 		self.menuOptions = QtWidgets.QMenu(self.menuBar)
 		self.menuOptions.setTitle("Options")
 
-		self.actionRegex_filtering_mode = QtWidgets.QAction(MainWindow)
+		self.actionRegex_filtering_mode = QtGui.QAction(self)
 		self.actionRegex_filtering_mode.setText("Regex Filtering")
 		self.actionRegex_filtering_mode.setCheckable(True)
 		self.menuOptions.addAction(self.actionRegex_filtering_mode)
 
 		self.menuOptions.addSeparator()
 
-		self.actionAdmin_mode = QtWidgets.QAction(MainWindow)
+		self.actionAdmin_mode = QtGui.QAction(self)
 		self.actionAdmin_mode.setText("Admin mode")
 		self.actionAdmin_mode.setCheckable(True)
 		self.menuOptions.addAction(self.actionAdmin_mode)
@@ -349,24 +354,24 @@ class Ui_MainWindow(QtWidgets.QWidget):
 		self.menuAdminTools = QtWidgets.QMenu(self.menuBar)
 		self.menuAdminTools.setTitle("Admin Tools")
 		
-		self.actionFarnellOrderList = QtWidgets.QAction(MainWindow)
+		self.actionFarnellOrderList = QtGui.QAction(self)
 		self.actionFarnellOrderList.setText("Farnell order list")
 		self.menuAdminTools.addAction(self.actionFarnellOrderList)
 		
 		self.menuAdminTools.addSeparator()
 		
-		self.actionOpenURL = QtWidgets.QAction(MainWindow)
+		self.actionOpenURL = QtGui.QAction(self)
 		self.actionOpenURL.setText("Open all URL's")
 		self.menuAdminTools.addAction(self.actionOpenURL)
 		# ----
 		self.menuHelp = QtWidgets.QMenu(self.menuBar)
 		self.menuHelp.setTitle("Help")
 
-		self.actionInfo = QtWidgets.QAction(MainWindow)
+		self.actionInfo = QtGui.QAction(self)
 		self.actionInfo.setText("Info")
 		self.menuHelp.addAction(self.actionInfo)
 
-		self.actionAbout = QtWidgets.QAction(MainWindow)
+		self.actionAbout = QtGui.QAction(self)
 		self.actionAbout.setText("About")
 		self.menuHelp.addAction(self.actionAbout)
 
@@ -376,18 +381,18 @@ class Ui_MainWindow(QtWidgets.QWidget):
 		self.menuBar.addAction(self.menuHelp.menuAction())
 
 	def _ui_set_statusbar(self):
-		self.statusBar = QtWidgets.QStatusBar(MainWindow)
+		self.statusBar = QtWidgets.QStatusBar(self)
 		self.statusBar.setMaximumSize(QtCore.QSize(16777215, 18))  # height
 
 		self.statusBar.setPalette(self.palette_statusbar)
 		self.statusBar.setAutoFillBackground(True)
-		MainWindow.setStatusBar(self.statusBar)
+		self.setStatusBar(self.statusBar)
 
 		self.statusbar_text = QtWidgets.QLabel('')
 		self.statusBar.addWidget(self.statusbar_text)
 
 	def _ui_set_tabs(self):
-		self.tabWidget = QtWidgets.QTabWidget(self.centralWidget)
+		self.tabWidget = QtWidgets.QTabWidget(self)
 		self.tabWidget.setPalette(self.palette_window)
 		# self.tabWidget.setAutoFillBackground(False)
 		self.tabWidget.setStyleSheet("QTabWidget::pane {\n"
@@ -475,7 +480,7 @@ class Ui_MainWindow(QtWidgets.QWidget):
 		self.cProduct.setMaxVisibleItems(25)
 		self.cProduct.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToContents)
 		self.cProduct.setInsertPolicy(QtWidgets.QComboBox.InsertAlphabetically)
-		self.cProduct.setAutoCompletion(False)
+		self.cProduct.setCompleter(None)
 		self.gridLayout_neworder.addWidget(self.cProduct, 1, 1, 1, 8)
 
 		self.lAmount = QtWidgets.QLabel(self.tab_neworder)
@@ -495,7 +500,7 @@ class Ui_MainWindow(QtWidgets.QWidget):
 		self.gridLayout_neworder.addWidget(self.sAmount, 4, 1, 1, 1)
 
 		self.bUrl = QtWidgets.QPushButton(self.tab_neworder)
-		self.bUrl.setText("Get data from\nFarnell")
+		self.bUrl.setText("Get data from\nFarnell/Conrad")
 		#self.bUrl.setHidden(True)
 		#self.bUrl.setEnabled(True)
 		self.gridLayout_neworder.addWidget(self.bUrl, 4, 8, 1, 1)
@@ -537,7 +542,7 @@ class Ui_MainWindow(QtWidgets.QWidget):
 		self.cStorename.setEditable(True)
 		self.cStorename.setMaxVisibleItems(25)
 		self.cStorename.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToContents)
-		self.cStorename.setAutoCompletion(True)
+#		self.cStorename.setAutoCompletion(True)
 		self.gridLayout_neworder.addWidget(self.cStorename, 2, 1, 1, 8)
 
 		self.lURL = QtWidgets.QLabel(self.tab_neworder)
@@ -620,11 +625,11 @@ class Ui_MainWindow(QtWidgets.QWidget):
 
 		self.tableview = QtWidgets.QTableView(self)
 
-		self.act_copy = QtWidgets.QAction("Reorder", self.tableview)
+		self.act_copy = QtGui.QAction("Reorder", self.tableview)
 		self.tableview.addAction(self.act_copy)
 		#self.tableview.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
 		
-		self.act_open_farnell = QtWidgets.QAction("Open in Farnell", self.tableview)
+		self.act_open_farnell = QtGui.QAction("Open in Farnell", self.tableview)
 		self.tableview.addAction(self.act_open_farnell)
 		self.tableview.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
 
@@ -721,10 +726,11 @@ class Ui_MainWindow(QtWidgets.QWidget):
 		self.gridLayout_overview.addWidget(self.label, 1, 0, 1, 1)
 
 	def _set_signal_slots(self):
-		self.actionExit.triggered.connect(MainWindow.close)
+		self.actionExit.triggered.connect(self.close)
 		self.actionInfo.triggered.connect(self._slot_menu_info)  # popup msgbox at pressing "?"
 		self.actionAbout.triggered.connect(self._slot_menu_about)  # popup msgbox at pressing "?"
 		self.actionOpen.triggered.connect(self.explorer_open_db)
+		self.actionImport.triggered.connect(self.import_multiple)
 		self.actionAdmin_mode.toggled['bool'].connect(self._slot_admin_mode_toggle)
 		self.actionReload.triggered.connect(self._slot_save_changed_items)
 		self.actionRegex_filtering_mode.toggled['bool'].connect(self.regex_check_changed)
@@ -756,12 +762,26 @@ class Ui_MainWindow(QtWidgets.QWidget):
 		self.bTable_save.clicked.connect(self._slot_save_changed_items)
 		self.bTable_delete.clicked.connect(self._slot_delete_row_table)
 
-		MainWindow.close_check.connect(self._slot_save_changed_items)
+		self.close_check.connect(self._slot_save_changed_items)
 
-		QtCore.QMetaObject.connectSlotsByName(MainWindow)
+		QtCore.QMetaObject.connectSlotsByName(self)
 		
 	
 	def _slot_make_Farnell_order_list(self):
+		def get_orders(indexes, multiple):
+			order_string = str()
+			for index in indexes:  # get order numbers, amount, added by (project)
+				row = index.row()
+				ordernumber = str(self.tablemodel.getData(row, gURL_Ordernumber_col))
+				if ordernumber == "*": continue
+				if "http" in ordernumber: continue
+				if not ordernumber[:6].isdigit(): continue
+				amount = str(self.tablemodel.getData(row, gAmount_col) * multiple)
+				addedby = str(self.tablemodel.getData(row, gAdded_by_col))
+				costcentre = str(self.tablemodel.getData(row, gCostCentre_col))
+				order_string += ordernumber + ", " + amount + ", " + addedby + " " + costcentre + "\n"
+			textbox.setPlainText(order_string)
+
 		rowcount = self.proxyModel_filter.rowCount()
 		indexes = list()
 		selection_index = self.tableview.selectedIndexes()
@@ -779,34 +799,42 @@ class Ui_MainWindow(QtWidgets.QWidget):
 				for sel_index in selection_index:
 					if index.row() == self.proxyModel_filter.mapToSource(sel_index).row():
 						indexes.append(index)
-				
-		
-		order_string = str()
-		for index in indexes:	#get order numbers, amount, added by (project)
-			row = index.row()
-			ordernumber = str(self.tablemodel.getData(row, gURL_Ordernumber_col))
-			if ordernumber == "*": continue
-			if "http" in ordernumber: continue
-			if not ordernumber[:6].isdigit(): continue
-			amount = str(self.tablemodel.getData(row, gAmount_col))
-			addedby = str(self.tablemodel.getData(row, gAdded_by_col))
-			costcentre = str(self.tablemodel.getData(row, gCostCentre_col))
-			order_string += ordernumber + ", " + amount + ", " + addedby + " " + costcentre + "\n"
-		
+
+
+
+
 		# display in plaintextedit in popup
 		display_dialog = QtWidgets.QDialog(self)
 		display_dialog.setPalette(self.palette_window)
 		#display_dialog.setWindowTitle("SOS: Simple Order System " + self.VERSION)
-		display_dialog.setWindowTitle(MainWindow.windowTitle())
-		display_dialog.setWindowIcon(MainWindow.windowIcon())
+		display_dialog.setWindowTitle(self.windowTitle())
+		display_dialog.setWindowIcon(self.windowIcon())
 		label = QtWidgets.QLabel("Farnell Order list")
 		label.setPalette(self.palette_whitetext)
+
+		lMultiple = QtWidgets.QLabel("x")
+		lMultiple.setMaximumWidth(10)
+		lMultiple.setPalette(self.palette_whitetext)
+
+		sMultiple = QtWidgets.QSpinBox(self)
+		sMultiple.setMinimum(1)
+		sMultiple.setMaximum(9999)
+		sMultiple.setMaximumWidth(50)
+		sMultiple.valueChanged.connect(lambda x:get_orders(indexes, sMultiple.value()))
+
 		textbox = QtWidgets.QPlainTextEdit()
-		textbox.setPlainText(order_string)
 		vlayout = QtWidgets.QVBoxLayout()
-		vlayout.addWidget(label)
+		hlayout = QtWidgets.QHBoxLayout()
+		hlayout.addWidget(label) #hori
+		hlayout.addWidget(sMultiple) #hori
+		hlayout.addWidget(lMultiple) #hori
+		vlayout.addLayout(hlayout)
 		vlayout.addWidget(textbox)
+
 		display_dialog.setLayout(vlayout)
+
+		sMultiple.setValue(1)
+		get_orders(indexes,1)
 		display_dialog.exec_()
 	
 	def _slot_open_URLs(self):
@@ -854,7 +882,7 @@ class Ui_MainWindow(QtWidgets.QWidget):
 		self.ADMIN_MODE = istoggled
 		if istoggled:
 			if self.CONFIG_BUSY == False:
-				msgbox = QtWidgets.QMessageBox(MainWindow)
+				msgbox = QtWidgets.QMessageBox(self)
 				msgbox.setIcon(QtWidgets.QMessageBox.Warning)
 				msgbox.setWindowTitle('Toggle admin mode')
 				msgbox.setText('If you are not the database administrator please press "Cancel"')
@@ -891,7 +919,7 @@ class Ui_MainWindow(QtWidgets.QWidget):
 				continue
 			ordered_checked = index.model().data(index.model().index(index.row(), gOrdered_col), QtCore.Qt.DisplayRole)
 			if ordered_checked != 0: #makes sure the already ordered records are not deleted
-				msgbox = QtWidgets.QMessageBox(MainWindow)
+				msgbox = QtWidgets.QMessageBox(self)
 				msgbox.setIcon(QtWidgets.QMessageBox.Question)
 				msgbox.setWindowTitle('Cannot delete order')
 				msgbox.setText('This item is already ordered, you cannot delete it.')
@@ -911,7 +939,7 @@ class Ui_MainWindow(QtWidgets.QWidget):
 			ID = ID.rstrip(', ')
 			row = "rows"
 
-		msgbox = QtWidgets.QMessageBox(MainWindow)
+		msgbox = QtWidgets.QMessageBox(self)
 		msgbox.setIcon(QtWidgets.QMessageBox.Question)
 		msgbox.setWindowTitle('Unsaved changes')
 		msgbox.setText('Are you sure you want to delete ' + str(len(selection_index)) + ' ' + row + '? (ID ' + ID + ')')
@@ -931,7 +959,7 @@ class Ui_MainWindow(QtWidgets.QWidget):
 
 	def _slot_save_changed_items(self, exit=False):
 		if len(self.table_row_changed) > 0:
-			msgbox = QtWidgets.QMessageBox(MainWindow)
+			msgbox = QtWidgets.QMessageBox(self)
 			msgbox.setIcon(QtWidgets.QMessageBox.Question)
 			msgbox.setWindowTitle('Unsaved changes')
 			msgbox.setText('Do you want to save your unsaved changes?')
@@ -975,7 +1003,7 @@ class Ui_MainWindow(QtWidgets.QWidget):
 			"If you have a quotation, fill in the extra details in the comment section. The attachment can be selected in the file selector field at the bottom. There is no need to manually copy it to a specific location.\n" \
 			"Press the 'Orders' button to see all (past) orders. In the dropdown box you can select which order status you want to see.\n" \
 			"With the comboboxes above the table you can filter the results. Use regex in the filter boxes for enhanced filtering."
-		msgbox = QtWidgets.QMessageBox(MainWindow)
+		msgbox = QtWidgets.QMessageBox(self)
 		msgbox.setWindowTitle("Info")
 		msgbox.setText(message)
 		msgbox.exec_()
@@ -984,7 +1012,7 @@ class Ui_MainWindow(QtWidgets.QWidget):
 		message = 'SOS: simple order system ' + self.VERSION
 		message += "\n\nCreated by Dimitri Welting for the UMC Utrecht (2019)\n"
 
-		msgbox = QtWidgets.QMessageBox(MainWindow)
+		msgbox = QtWidgets.QMessageBox(self)
 		msgbox.setIcon(QtWidgets.QMessageBox.Question)
 		msgbox.setWindowTitle('About')
 		msgbox.setText(message)
@@ -1007,14 +1035,13 @@ class Ui_MainWindow(QtWidgets.QWidget):
 		self.cAddedBy.setCurrentText(config.get_setting(Config__Added_by))
 
 	def _slot_find_attachment(self):
-		filename = QtWidgets.QFileDialog.getOpenFileName(MainWindow,
+		filename = QtWidgets.QFileDialog.getOpenFileName(self,
 		                                                 "Open File",
 		                                                 "",  # "/" test
 		                                                 "Documents (*.pdf *.doc *.docx *.odt *.txt *.rtf *.tex)")
 		self.tAttachment.setText(filename[0])
 
-	def _slot_save_button_new_order(self):
-
+	def _slot_save_button_new_order(self, confirm=True):
 		# get time and date
 		timedate = self.current_time_date()
 		# append attachtment file to comment line
@@ -1024,7 +1051,7 @@ class Ui_MainWindow(QtWidgets.QWidget):
 			commenttext = commenttext + "\n" + filename #self.tAttachment.text()
 
 		# copy input form texts to array
-		saved_input_list = [[0] * 2 for _ in range(len(self.row_data))]
+		saved_input_list = [[0] * 2 for _ in range(len(str(self.row_data)))]
 		saved_input_list[0] = [gAdded_by, self.cAddedBy.currentText()]
 		saved_input_list[1] = [gProduct, self.cProduct.currentText()]
 		saved_input_list[2] = [gAmount, self.sAmount.value()]
@@ -1044,7 +1071,7 @@ class Ui_MainWindow(QtWidgets.QWidget):
 			if (item[1] == "") or (item[1] == 0):
 				print('error')
 				QtWidgets.QMessageBox.warning(
-						MainWindow,
+						self,
 						'Error',
 						'Error: not all required fields filled in',
 						QtWidgets.QMessageBox.Ok)
@@ -1084,11 +1111,11 @@ class Ui_MainWindow(QtWidgets.QWidget):
 		self._slot_clear_fields() #empty imputs
 		self.cStorename.setCurrentText(store_name)
 
-
-		QtWidgets.QMessageBox.information(
-				MainWindow,
-				'Saved',
-				'Order saved')
+		if confirm:
+			QtWidgets.QMessageBox.information(
+					self,
+					'Saved',
+					'Order saved')
 
 	def _slot_save_button_table(self):
 		if len(self.table_row_changed) == 0:
@@ -1113,7 +1140,7 @@ class Ui_MainWindow(QtWidgets.QWidget):
 		self.cTable_Query_select_changed(full_refresh=True)
 
 		QtWidgets.QMessageBox.information(
-				MainWindow,
+				self,
 				'Saved',
 				str(len(self.table_row_changed))+' Orders updated')
 
@@ -1138,18 +1165,18 @@ class Ui_MainWindow(QtWidgets.QWidget):
 		
 		dst_config = config.get_setting(Config_Attachment, Config_Misc)
 		try:
-			if not "7TCoillab" in dst_config:
-				raise FileNotFoundError('Wrong')
-			else:
+			#if not "7TCoillab" in dst_config:
+			#	raise FileNotFoundError('Wrong')
+			#else:
 				copy2(src_loc, dst_config + filename)
 		
 		except FileNotFoundError:
 			message = 'Destination folder for copying attachment not found.\nPlease select the correct attachment folder.'
 			QtWidgets.QMessageBox.warning(
-				MainWindow,
+				self,
 				'Database not valid',
 				message)
-			dst_dir = QtWidgets.QFileDialog.getExistingDirectory(MainWindow,
+			dst_dir = QtWidgets.QFileDialog.getExistingDirectory(self,
 			                                           "Open Directory",
 			                                           "",
 			                                           QtWidgets.QFileDialog.ShowDirsOnly | QtWidgets.QFileDialog.DontResolveSymlinks)
@@ -1184,10 +1211,7 @@ class Ui_MainWindow(QtWidgets.QWidget):
 
 	def explorer_open_db(self):
 		while True:
-			fileDlg = QtWidgets.QFileDialog(MainWindow)
-			filename = fileDlg.getOpenFileName(MainWindow, "Open File", QtCore.QDir.homePath(), "Documents (*.db)")
-			fileDlg.close()
-			fileDlg.deleteLater()
+			filename = QtWidgets.QFileDialog.getOpenFileName(self, "Open File", QtCore.QDir.homePath(), "Documents (*.db)")
 
 			if filename[0] == "":
 				return True
@@ -1206,9 +1230,9 @@ class Ui_MainWindow(QtWidgets.QWidget):
 			return False
 
 		else:
-			message = 'No database is loaded or the database you chose is not a valid sqlite3 database. \nPlease choose another database.\n\nThis database is usually located in a network location'
+			message = 'No database is loaded or the database you chose is not a valid sqlite3 database. \nPlease choose another database'
 			QtWidgets.QMessageBox.warning(
-					MainWindow,
+					self,
 					'Invalid database',
 					message)
 			return True
@@ -1290,7 +1314,7 @@ class Ui_MainWindow(QtWidgets.QWidget):
 			db_data = [list(i) for i in db_data]
 			if len(db_data) == 0: #if there are no records, make sure it doesnt crash, so add at least one (empty) line
 				db_data.append([])
-				for _ in column_names: db_data[0].append("")
+				for _ in self.column_names: db_data[0].append("")
 
 			self.tablemodel.setAllData(db_data)
 
@@ -1344,7 +1368,8 @@ class Ui_MainWindow(QtWidgets.QWidget):
 		if (self.db_path == db.DB_PATH) and (refresh == 'soft'):
 			return
 
-		#todo make these functions dependend on tablemodel data instead of queries
+
+		#todo make these functions dependend on tablemodel data in stead of queries
 		self._fill_combobox_addedby()
 		self._fill_combobox_product()
 		self._fill_combobox_storename()
@@ -1391,7 +1416,7 @@ class Ui_MainWindow(QtWidgets.QWidget):
 		text = self.cProduct.currentText()
 		pos = self.cProduct.lineEdit().cursorPosition()
 
-		self.combo_proxy_product.setFilterRegExp(inputtext)
+		self.combo_proxy_product.setFilterRegularExpression(inputtext)
 
 		self.cProduct.blockSignals(True)
 		self.cProduct.setCurrentText(text)
@@ -1401,7 +1426,7 @@ class Ui_MainWindow(QtWidgets.QWidget):
 	def _filter_combobox_storename(self, inputtext):
 		text = self.cStorename.currentText()
 		pos = self.cStorename.lineEdit().cursorPosition()
-		self.combo_proxy_storename.setFilterRegExp(inputtext)
+		self.combo_proxy_storename.setFilterRegularExpression(inputtext)
 		
 		self.cStorename.blockSignals(True)
 		#if self.combo_proxy_storename.rowCount() == 1 and pos == len(text):
@@ -1417,7 +1442,7 @@ class Ui_MainWindow(QtWidgets.QWidget):
 	def _filter_combobox_addedby(self, inputtext):
 		text = self.cAddedBy.currentText()
 		pos = self.cAddedBy.lineEdit().cursorPosition()
-		self.combo_proxy_addedby.setFilterRegExp(inputtext)
+		self.combo_proxy_addedby.setFilterRegularExpression(inputtext)
 		self.cAddedBy.blockSignals(True)
 		self.cAddedBy.setCurrentText(text)
 		self.cAddedBy.lineEdit().setCursorPosition(pos)
@@ -1432,6 +1457,7 @@ class Ui_MainWindow(QtWidgets.QWidget):
 				break
 
 		self.sAmount.setValue(item[gAmount_col])
+
 
 		data = item[gPrice_per_unit_col]
 		data = data.split(" ")
@@ -1497,7 +1523,6 @@ class Ui_MainWindow(QtWidgets.QWidget):
 			url = "https://nl.farnell.com/" + ordernumber
 			webbrowser.open(url, new=0, autoraise=True)
 
-	
 	def save_selection_to_input(self): #copies selection in tableview to the input new order tab
 		view_index = self.tableview.currentIndex()
 		model_index = self.proxyModel_filter.mapToSource(view_index)
@@ -1526,24 +1551,22 @@ class Ui_MainWindow(QtWidgets.QWidget):
 
 	def get_data_from_url(self):
 		url = self.tURL.text()
-		url = url.split('?')
-		try:
-			url = url[0]
-		except:
-			pass
+		url = url.split('?')[0]
+		url = url.rstrip('\n')
 
 		validator = QtGui.QRegExpValidator()
 		validator.setRegExp(QtCore.QRegExp(r"^(?:(http(s)?:\/\/))?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+$"))
 		v = validator.validate(url, 0)
-		if (v[0] != QtGui.QValidator.Acceptable) and (self.cStorename.currentText().lower() != "farnell"):
+
+		if (v[0] != QtGui.QValidator.Acceptable) and (self.cStorename.currentText() == "Farnell"):
+			url = "https://nl.farnell.com/"+self.tURL.text()
+
+		elif (v[0] != QtGui.QValidator.Acceptable):
 			#print('invalid url')
 			return
 
-		if (v[0] != QtGui.QValidator.Acceptable) and (self.cStorename.currentText().lower() == "farnell"):
-			url = "https://nl.farnell.com/"+self.tURL.text()
-
 		self.bUrl.setEnabled(False)
-		msgbox = QtWidgets.QMessageBox(MainWindow)
+		msgbox = QtWidgets.QMessageBox(self)
 		msgbox.setIcon(QtWidgets.QMessageBox.Warning)
 		msgbox.setWindowTitle('URL data loading')
 		msgbox.setText('URL data loading')
@@ -1553,7 +1576,7 @@ class Ui_MainWindow(QtWidgets.QWidget):
 		           "Upgrade-Insecure-Requests": "1", "DNT": "1", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 		           "Accept-Language"          : "en-US,en;q=0.5", "Accept-Encoding": "gzip, deflate"}
 
-		if ('farnell' in url):
+		if ('farnell' in url) or ('conrad' in url):
 			try:
 				page = requests.get(url, headers=headers, timeout=5)
 			except:
@@ -1566,6 +1589,8 @@ class Ui_MainWindow(QtWidgets.QWidget):
 			#try:
 			if ('farnell' in url):
 				product, ordercode, currency, price, storename = self.soup_Farnell(soup)
+			elif 'conrad' in url:
+				product, ordercode, currency, price, storename = self.soup_Conrad(soup)
 			#except:
 			#	msgbox.close()
 			#	self.bUrl.setEnabled(True)
@@ -1617,7 +1642,6 @@ class Ui_MainWindow(QtWidgets.QWidget):
 
 		return product, ordercode, currency, price, 'Farnell'
 
-
 	def set_time_date_after_checkbox(self, index, checked):
 		index = self.proxyModel_filter.mapToSource(index)
 		column = index.column()
@@ -1654,17 +1678,76 @@ class Ui_MainWindow(QtWidgets.QWidget):
 			#print(str(index.column()) + "," + str(checked))
 			self.tableview.model().sourceModel().setData(index, "", QtCore.Qt.EditRole)
 
+	def import_multiple(self):
+		def _import():
+			orders = textbox.toPlainText()
+			orders = orders.split('\n')
+
+			for order in orders:
+				order = order.split(',')
+
+				self.cStorename.setCurrentText('Farnell')
+				try:
+					self.tURL.setText(str(order[0]))
+					self.sAmount.setValue(int(order[1]))
+				except:
+					continue
+
+				if len(order) >= 3:
+					self.tCostCentre.setText(order[2])
+				else:
+					self.tCostCentre.setText('*')
+
+				if len(order) >= 4:
+					self.cAddedBy.setCurrentText(order[3])
+
+				self.get_data_from_url()
+
+				if len(order) >= 5:
+					self.pComment.setPlainText(self.pComment.toPlainText() + '\n' + order[4])
+
+				self._slot_save_button_new_order(confirm=False)
+
+			textbox.clear()
+			display_dialog.close()
+			QtWidgets.QMessageBox.information(
+					self,
+					'Imported',
+					'Orders imported')
+
+		display_dialog = QtWidgets.QDialog(self)
+		display_dialog.setPalette(self.palette_window)
+		display_dialog.setWindowTitle(self.windowTitle())
+		display_dialog.setWindowIcon(self.windowIcon())
+		label = QtWidgets.QLabel("Import Farnell Order list\n"
+		                         "<Ordernumber>,<amount>,<cost centre>,<added by>,<comment>")
+		label.setPalette(self.palette_whitetext)
+		textbox = QtWidgets.QPlainTextEdit()
+		button = QtWidgets.QPushButton("Done")
+		vlayout = QtWidgets.QVBoxLayout()
+		vlayout.addWidget(label)
+		vlayout.addWidget(textbox)
+		vlayout.addWidget(button)
+		display_dialog.setLayout(vlayout)
+
+		button.clicked.connect(_import)
+		display_dialog.exec_()
 
 if __name__ == "__main__":
 	import sys
 
 	# todo add project column
-	# todo Farnell item price, depending on amount
-	# todo add button to reorder in batches
+	# todo date returned aanpassen naar not yet received ofzo
+	
+	# todo bij farnell de prijs aanpassen aan het aantal?? lastig, maar misschien als aantal eerst is ingevult kan het
+	
+	# todo knop toevoegen die bij orders de zichtbare lijst kopieerd, ordernummer, amount, added by, project
+	#   of rechtermuisknop, copy
+	
 	# todo after deleting row, keep ordering
 
-	# todo divide Ui_MainWindow class into multiple parts (setting up ui, table stuff, signal slots(?))
-	#  maybe one class per tab, so it's easy to make another tab in the future?
+	#todo divide Ui_self class into multiple parts (setting up ui, table stuff, signal slots(?))
+	# maybe one class per tab, so it's easy to make another tab in the future?
 
 	DebugTiming.enable(DEBUG)
 	DebugTiming.start('creating objects')
@@ -1682,19 +1765,15 @@ if __name__ == "__main__":
 	# create window
 	app = QtWidgets.QApplication(sys.argv)
 	app.setQuitOnLastWindowClosed(True)
-	MainWindow = MyQMainWindow()
-	ui = Ui_MainWindow(MainWindow, db, config)
+	ui = Ui_self(db, config)
 	DebugTiming.finish('creating objects')
 
 	# show window
-	DebugTiming.start('MainWindow.show')
-	MainWindow.show()
-	DebugTiming.finish('MainWindow.show')
+	DebugTiming.start('self.show')
+	ui.show()
+	DebugTiming.finish('self.show')
 
-	DebugTiming.start('config_set')
-	ui.config_set()
-	DebugTiming.finish('config_set')
 	#DebugTiming.setEnable(False)
 
-	sys.exit(app.exec_())
+	sys.exit(app.exec())
 

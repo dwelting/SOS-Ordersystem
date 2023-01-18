@@ -11,7 +11,9 @@ Optimization has been a big part of the devolvement, so it can easily handle dat
 
 ---
 
-An installer script is included. This will install the program on a Windows pc to the Appdata folder.
+In the [releases](../releases) page the lastest excecutable can be found. Simply download it, extract the .zip file and copy the resulting folder to a location of your choosing.
+
+Alternativly an installer script is included. This will install the program on a Windows pc to the Appdata folder. This is still a work in progress.
 
 ---
 

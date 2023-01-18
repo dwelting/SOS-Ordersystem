@@ -1,8 +1,8 @@
-from PySide2.QtCore import *
+from PySide6.QtCore import *
 #from PySide2.QtGui import *
 #from PySide2.QtWidgets import *
 
-from PySide2 import QtWidgets
+from PySide6 import QtWidgets
 
 
 # https://www.saltycrane.com/blog/2007/06/pyqt-42-qabstracttablemodelqtableview/
@@ -56,35 +56,44 @@ class CheckboxItemDelegate_noedit(CheckboxItemDelegate): # makes centered chackb
 
 class MyFilterProxyModel(QSortFilterProxyModel): # makes external filterboxes possible
 
-	TemplateRegExp = QRegExp()
+	TemplateRegExp = QRegularExpression()
 	FilterRegExp = list()
 	columns_to_filter = list()
 
 	def __init__(self, parent): #https://stackoverflow.com/questions/39488901/change-qsortfilterproxymodel-behaviour-for-multiple-column-filtering/39491243#39491243
 		QSortFilterProxyModel.__init__(self)
 		self.setParent(parent)
-		self.TemplateRegExp.setCaseSensitivity(Qt.CaseInsensitive)
-		#self.TemplateRegExp.setPatternSyntax(QRegExp.RegExp)
-		self.TemplateRegExp.setPatternSyntax(QRegExp.Wildcard)
+#		self.TemplateRegExp.setCaseSensitivity(Qt.CaseInsensitive) #deprecated
+		self.TemplateRegExp.setPatternOptions(QRegularExpression.CaseInsensitiveOption)
+		#self.TemplateRegExp.setPatternSyntax(QRegularExpression.RegExp)
+#		self.TemplateRegExp.setPatternSyntax(QRegularExpression.Wildcard) #deprecated
+
 
 	def filterAcceptsRow(self, sourceRow, sourceParent):
 		for i, column_number in enumerate(self.columns_to_filter):
-			if self.FilterRegExp[i].isEmpty(): continue
+			#if self.FilterRegExp[i].isEmpty(): continue
 			#source_index = self.sourceModel().index(sourceRow, column_number, sourceParent)
 			#source_data = str(self.sourceModel().data(source_index))
 			source_data = str(self.sourceModel().data_filter(sourceRow, column_number))
-			if self.FilterRegExp[i].indexIn(source_data) == -1:
-				return False #if regex string doesnt find a match then don't show this row
+
+#			if self.FilterRegExp[i].indexIn(source_data) == -1: #deprecated
+			match = self.FilterRegExp[i].match(source_data)
+
+			if match.hasMatch() == False:
+				return False #if regex string doesn't find a match then don't show this row
 		return True
 
 	def setFilter_fast(self, regExp):
 		column = self.sender().property("column")  # check which filter is being typed
+		regexp2 = QRegularExpression.wildcardToRegularExpression(regExp)
 		self.FilterRegExp[column].setPattern(regExp)
 
 	def setFilter(self, regExp):
 		if len(self.columns_to_filter) > 0:
 			column = self.sender().property("column")  # check which filter is being typed
-			self.FilterRegExp[column].setPattern(regExp)
+
+			regExp2 = QRegularExpression.wildcardToRegularExpression(regExp, options=QRegularExpression.UnanchoredWildcardConversion)
+			self.FilterRegExp[column].setPattern(regExp2)
 			self.invalidateFilter()
 
 	def filter(self):
@@ -127,12 +136,13 @@ class MyFilterProxyModel(QSortFilterProxyModel): # makes external filterboxes po
 		else: return False
 
 	def changeSyntax(self, Regex = True):
-		if len(self.FilterRegExp) > 0:
-			for filter in self.FilterRegExp:
-				if Regex:
-					filter.setPatternSyntax(QRegExp.RegExp)
-				else:
-					filter.setPatternSyntax(QRegExp.Wildcard)
+		pass
+		#if len(self.FilterRegExp) > 0: #TODO
+		#	for filter in self.FilterRegExp:
+		#		if Regex:
+		#			filter.setPatternSyntax(QRegularExpression.RegExp)
+		#		else:
+		#			filter.setPatternSyntax(QRegularExpression.Wildcard)
 
 class MyTableModel(QAbstractTableModel):
 
