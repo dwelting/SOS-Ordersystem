@@ -1,6 +1,6 @@
 import configparser
 
-VERSION = "2023.01.17"
+VERSION = "2023.02.21"
 
 Config__Admin_mode = "Admin mode"
 Config__Window_width = "Window width"
