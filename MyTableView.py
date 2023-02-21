@@ -85,7 +85,7 @@ class MyFilterProxyModel(QSortFilterProxyModel): # makes external filterboxes po
 
 	def setFilter_fast(self, regExp):
 		column = self.sender().property("column")  # check which filter is being typed
-		regexp2 = QRegularExpression.wildcardToRegularExpression(regExp)
+		#regexp2 = QRegularExpression.wildcardToRegularExpression(regExp)
 		self.FilterRegExp[column].setPattern(regExp)
 
 	def setFilter(self, regExp):

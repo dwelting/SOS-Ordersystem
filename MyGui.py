@@ -1554,8 +1554,8 @@ class Ui_self(QtWidgets.QMainWindow):
 		url = url.split('?')[0]
 		url = url.rstrip('\n')
 
-		validator = QtGui.QRegExpValidator()
-		validator.setRegExp(QtCore.QRegExp(r"^(?:(http(s)?:\/\/))?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+$"))
+		validator = QtGui.QRegularExpressionValidator()
+		validator.setRegularExpression(r"^(?:(http(s)?:\/\/))?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+$")
 		v = validator.validate(url, 0)
 
 		if (v[0] != QtGui.QValidator.Acceptable) and (self.cStorename.currentText() == "Farnell"):
@@ -1731,7 +1731,7 @@ class Ui_self(QtWidgets.QMainWindow):
 		display_dialog.setLayout(vlayout)
 
 		button.clicked.connect(_import)
-		display_dialog.exec_()
+		display_dialog.exec()
 
 if __name__ == "__main__":
 	import sys
